@@ -41,8 +41,8 @@ void initGPIO(void){
 	
 	//Set Up the Seconds LED for PWM
 	//Write your logic here
-	pinMode(SECS, OUTPUT);
-   softPwmCreate(SECS, 1, 100);
+	pinMode(SECS, PWM_OUTPUT);
+   softPwmCreate(SECS, 0, 100); //try 60 instead of 100, maybe 60 could be fully on?
    
 	printf("LEDS done\n");
 	
@@ -62,8 +62,8 @@ void initGPIO(void){
    printf("Registering ISR failed\n");
    return 2;
    }*/
-   wiringPiISR(5, INT_EDGE_FALLING, &hourInc
-   wiringPiISR(30, INT_EDGE_FALLING, &minIn
+   wiringPiISR(5, INT_EDGE_FALLING, &hourInc);
+   wiringPiISR(30, INT_EDGE_FALLING, &minIn);
    
 	printf("BTNS done\n");
 	printf("Setup done\n");
@@ -82,7 +82,8 @@ int main(void){
 	wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
 	wiringPiI2CWriteReg8(RTC, MIN, 0x4);
 	wiringPiI2CWriteReg8(RTC, SEC, 0x00);
-	
+	//toggleTime();                               //use this when above is commented out?
+   
 	// Repeat this until we shut down
 	for (;;){
 		//Fetch the time from the RTC
@@ -142,6 +143,12 @@ void lightMins(int units){
  */
 void secPWM(int units){
 	// Write your logic here
+   if(0=<units<60){                  //not sure if this works in C?
+       softPwmWrite(SECS, units);
+   }
+   else{
+       softPwmWrite(SECS, 0);
+   }
 }
 
 /*
@@ -213,8 +220,19 @@ void hourInc(void){
 	if (interruptTime - lastInterruptTime>200){
 		printf("Interrupt 1 triggered, %x\n", hours);
 		//Fetch RTC Time
+      hours = wiringPiI2CReadReg8(RTC, HOUR);
 		//Increase hours by 1, ensuring not to overflow
+      if (0<=hours<23){
+          hours++;
+      }
+      else if(hours==23){
+          hours = 0;
+      }
+      else{
+          hours = hours;
+      }
 		//Write hours back to the RTC
+      wiringPiI2CWriteReg8(RTC, HOUR, hours);
 	}
 	lastInterruptTime = interruptTime;
 }
@@ -231,8 +249,20 @@ void minInc(void){
 	if (interruptTime - lastInterruptTime>200){
 		printf("Interrupt 2 triggered, %x\n", mins);
 		//Fetch RTC Time
+       mins = wiringPiI2CReadReg8(RTC, MIN);
 		//Increase minutes by 1, ensuring not to overflow
+      if (0<=mins<59){
+          mins++;
+      }
+      else if(hours==59){
+          mins = 0;
+      }
+      else{
+          mins = mins;
+      }
+
 		//Write minutes back to the RTC
+      wiringPiI2CWriteReg8(RTC, MIN, mins);
 	}
 	lastInterruptTime = interruptTime;
 }
